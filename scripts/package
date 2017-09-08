@@ -8,10 +8,12 @@ SUFFIX=""
 [ "${ARCH}" != "amd64" ] && SUFFIX="_${ARCH}"
 
 cd $(dirname $0)/..
-if [ ! -e bin/rancher-cni-bridge ]; then
+if [ ! -e bin/rancher-bridge ]; then
     ./scripts/build
 fi
 
 mkdir -p dist/artifacts
 cd bin
 tar cvzf ../dist/artifacts/rancher-cni-bridge-${VERSION}.tar.gz .
+
+echo "Built rancher-cni-bridge-${VERSION}.tar.gz"
