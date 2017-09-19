@@ -30,6 +30,7 @@ import (
 	"github.com/containernetworking/cni/pkg/types"
 	"github.com/containernetworking/cni/pkg/utils"
 	"github.com/containernetworking/cni/pkg/version"
+	"github.com/rancher/rancher-cni-bridge/fastpath"
 	"github.com/vishvananda/netlink"
 )
 
@@ -43,6 +44,11 @@ func init() {
 }
 
 func cmdAdd(args *skel.CmdArgs) error {
+	var (
+		fastPathMac        string
+		fastPathIPAMResult *types.Result
+	)
+
 	n, err := loadNetConf(args.StdinData)
 	if err != nil {
 		return err
@@ -93,19 +99,35 @@ func cmdAdd(args *skel.CmdArgs) error {
 		logrus.Infof("rancher-cni-bridge: container already has interface: %v, no worries", args.IfName)
 	}
 
-	macAddressToSet := ""
-	if nArgs.MACAddress != "" {
-		logrus.Debugf("rancher-cni-bridge: setting the %v interface %v MAC address: %v", args.ContainerID, args.IfName, nArgs.MACAddress)
-		macAddressToSet = string(nArgs.MACAddress)
-	} else {
-		macAddressToSet, err = findMACAddressForContainer(args.ContainerID, string(nArgs.RancherContainerUUID))
-		if err != nil {
-			logrus.Errorf("rancher-cni-bridge: err=%v", err)
-			return err
+	logrus.Infof("rancher-cni-bridge: using fastpath for container: %v", args.ContainerID)
+	fastPathMac, fastPathIPAMResult, err = fastpath.GetMacAndIPInfo(args.ContainerID)
+	if err != nil {
+		logrus.Errorf("rancher-cni-bridge: error fetching info using fastpath: %v", err)
+		fastPathMac = ""
+		fastPathIPAMResult = nil
+	}
+	logrus.Infof("rancher-cni-bridge: fastPathMac: %v fastPathIP: %v", fastPathMac, fastPathIPAMResult)
+
+	macAddressToSet := fastPathMac
+	if macAddressToSet == "" {
+		if nArgs.MACAddress != "" {
+			logrus.Debugf("rancher-cni-bridge: setting the %v interface %v MAC address: %v", args.ContainerID, args.IfName, nArgs.MACAddress)
+			macAddressToSet = string(nArgs.MACAddress)
+		} else {
+			macAddressToSet, err = findMACAddressForContainer(args.ContainerID, string(nArgs.RancherContainerUUID))
+			if err != nil {
+				logrus.Errorf("rancher-cni-bridge: err=%v", err)
+				return err
+			}
+			logrus.Debugf("rancher-cni-bridge: found the %v interface %v MAC address: %v", args.ContainerID, args.IfName, macAddressToSet)
 		}
-		logrus.Debugf("rancher-cni-bridge: found the %v interface %v MAC address: %v", args.ContainerID, args.IfName, macAddressToSet)
 	}
 
+	if macAddressToSet == "" {
+		return fmt.Errorf("rancher-cni-bridge: couldn't find MAC address for container: %v(%v) using fast path/regular path", args.ContainerID, nArgs.RancherContainerUUID)
+	}
+
+	logrus.Infof("rancher-cni-bridge: for container: %v(%v) using mac: %v", args.ContainerID, nArgs.RancherContainerUUID, macAddressToSet)
 	if err := netns.Do(func(_ ns.NetNS) error {
 		err := setInterfaceMacAddress(args.IfName, macAddressToSet)
 		if err != nil {
@@ -117,16 +139,24 @@ func cmdAdd(args *skel.CmdArgs) error {
 		return err
 	}
 
-	// run the IPAM plugin and get back the config to apply
-	result, err := ipam.ExecAdd(n.IPAM.Type, args.StdinData)
-	if err != nil {
-		return err
+	result := fastPathIPAMResult
+	if result == nil {
+		// run the IPAM plugin and get back the config to apply
+		result, err = ipam.ExecAdd(n.IPAM.Type, args.StdinData)
+		if err != nil {
+			return err
+		}
+	}
+
+	if result == nil {
+		return fmt.Errorf("rancher-cni-bridge: couldn't find IP address for container: %v(%v) using fast path/regular path", args.ContainerID, nArgs.RancherContainerUUID)
 	}
 
 	// TODO: make this optional when IPv6 is supported
 	if result.IP4 == nil {
 		return errors.New("IPAM plugin returned missing IPv4 config")
 	}
+	logrus.Infof("rancher-cni-bridge: for container: %v(%v) using ip: %v", args.ContainerID, nArgs.RancherContainerUUID, result.IP4.IP)
 
 	if n.IsGW {
 		if n.UseBridgeIPAsGW {
@@ -225,6 +255,7 @@ func cmdAdd(args *skel.CmdArgs) error {
 	}
 
 	result.DNS = n.DNS
+	logrus.Debugf("rancher-cni-bridge: result: %v", *result)
 	return result.Print()
 }
 
