@@ -28,7 +28,10 @@ func GetMacAndIPInfo(cid string) (string, *types.Result, error) {
 		return mac, r, err
 	}
 
-	mac = container.Config.Labels["io.rancher.container.mac_address"]
+	mac = container.Config.Labels["annotation.io.rancher.container.mac_address"]
+	if mac == "" {
+		mac = container.Config.Labels["io.rancher.container.mac_address"]
+	}
 	if mac == "" {
 		return mac, r, fmt.Errorf("couldn't find mac address label on container")
 	}

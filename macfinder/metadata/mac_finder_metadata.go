@@ -10,7 +10,7 @@ import (
 
 const (
 	metadataURLTemplate = "http://%v/2015-12-19"
-	multiplierForTwoMin = 240
+	multiplier          = 60
 	emptyMACAddress     = ""
 
 	// DefaultMetadataAddress specifies the default value to use if nothing is specified
@@ -36,7 +36,7 @@ func NewMACFinderFromMetadata(metadataAddress string) (*MACFinderFromMetadata, e
 // GetMACAddress returns the IP address for the given container id, return an empty string
 // if not found
 func (mf *MACFinderFromMetadata) GetMACAddress(cid, rancherid string) string {
-	for i := 0; i < multiplierForTwoMin; i++ {
+	for i := 0; i < multiplier; i++ {
 		containers, err := mf.m.GetContainers()
 		if err != nil {
 			logrus.Errorf("rancher-cni-bridge: Error getting metadata containers: %v", err)
