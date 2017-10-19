@@ -347,7 +347,7 @@ func setupBridge(n *NetConf) (*netlink.Bridge, error) {
 	}
 
 	// Set the bridge IP address
-	if n.BrSubnet != "" {
+	if n.BrSubnet != "" && !n.SkipBridgeConfigureIP {
 		err = setBridgeIP(n.BrName, n.BrIP, n.BrSubnet)
 		if err != nil {
 			return nil, fmt.Errorf("failed to set bridge IP: %v", err)

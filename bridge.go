@@ -99,12 +99,14 @@ func cmdAdd(args *skel.CmdArgs) error {
 		logrus.Infof("rancher-cni-bridge: container already has interface: %v, no worries", args.IfName)
 	}
 
-	logrus.Infof("rancher-cni-bridge: using fastpath for container: %v", args.ContainerID)
-	fastPathMac, fastPathIPAMResult, err = fastpath.GetMacAndIPInfo(args.ContainerID)
-	if err != nil {
-		logrus.Errorf("rancher-cni-bridge: error fetching info using fastpath: %v", err)
-		fastPathMac = ""
-		fastPathIPAMResult = nil
+	if !n.SkipFastPath {
+		logrus.Infof("rancher-cni-bridge: using fastpath for container: %v", args.ContainerID)
+		fastPathMac, fastPathIPAMResult, err = fastpath.GetMacAndIPInfo(args.ContainerID)
+		if err != nil {
+			logrus.Errorf("rancher-cni-bridge: error fetching info using fastpath: %v", err)
+			fastPathMac = ""
+			fastPathIPAMResult = nil
+		}
 	}
 	logrus.Infof("rancher-cni-bridge: fastPathMac: %v fastPathIP: %v", fastPathMac, fastPathIPAMResult)
 

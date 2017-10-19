@@ -18,19 +18,21 @@ type NetArgs struct {
 // NetConf is used to hold the config of the network
 type NetConf struct {
 	types.NetConf
-	BrName          string `json:"bridge"`
-	BrSubnet        string `json:"bridgeSubnet"`
-	BrIP            string `json:"bridgeIP"`
-	UseBridgeIPAsGW bool   `json:"useBridgeIPAsGateway"`
-	LogToFile       string `json:"logToFile"`
-	IsDebugLevel    string `json:"isDebugLevel"`
-	IsGW            bool   `json:"isGateway"`
-	IsDefaultGW     bool   `json:"isDefaultGateway"`
-	IPMasq          bool   `json:"ipMasq"`
-	MTU             int    `json:"mtu"`
-	LinkMTUOverhead int    `json:"linkMTUOverhead"`
-	HairpinMode     bool   `json:"hairpinMode"`
-	PromiscMode     bool   `json:"promiscMode"`
+	BrName                string `json:"bridge"`
+	BrSubnet              string `json:"bridgeSubnet"`
+	BrIP                  string `json:"bridgeIP"`
+	UseBridgeIPAsGW       bool   `json:"useBridgeIPAsGateway"`
+	LogToFile             string `json:"logToFile"`
+	IsDebugLevel          string `json:"isDebugLevel"`
+	IsGW                  bool   `json:"isGateway"`
+	IsDefaultGW           bool   `json:"isDefaultGateway"`
+	IPMasq                bool   `json:"ipMasq"`
+	MTU                   int    `json:"mtu"`
+	LinkMTUOverhead       int    `json:"linkMTUOverhead"`
+	HairpinMode           bool   `json:"hairpinMode"`
+	PromiscMode           bool   `json:"promiscMode"`
+	SkipBridgeConfigureIP bool   `json:"skipBridgeConfigureIP"`
+	SkipFastPath          bool   `json:"skipFastPath"`
 }
 
 func loadNetConf(bytes []byte) (*NetConf, error) {
