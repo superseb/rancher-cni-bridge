@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"strconv"
 	"syscall"
 
 	"github.com/Sirupsen/logrus"
@@ -441,4 +442,20 @@ func findMACAddressForContainer(containerID, rancherID string) (string, error) {
 	}
 
 	return macString, nil
+}
+
+func getLinkMTU(n NetConf, nArgs NetArgs) (int, error) {
+	overHeadToUse := 0
+	var err interface{}
+	if nArgs.LinkMTUOverhead != "" {
+		overHeadToUse, err = strconv.Atoi(string(nArgs.LinkMTUOverhead))
+		if err != nil {
+			return 0, fmt.Errorf("rancher-cni-bridge: Error converting LinkMTUOverhead: %v to int", nArgs.LinkMTUOverhead)
+		}
+	} else {
+		overHeadToUse = n.LinkMTUOverhead
+	}
+	linkMTU := n.MTU - overHeadToUse
+	logrus.Debugf("rancher-cni-bridge: overHeadToUse: %v, linkMTU: %v", overHeadToUse, linkMTU)
+	return linkMTU, nil
 }

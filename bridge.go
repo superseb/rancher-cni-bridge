@@ -20,7 +20,6 @@ import (
 	"net"
 	"os"
 	"runtime"
-	"strconv"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/containernetworking/cni/pkg/ip"
@@ -90,9 +89,14 @@ func cmdAdd(args *skel.CmdArgs) error {
 	}
 	defer netns.Close()
 
+	linkMTU, err := getLinkMTU(*n, *nArgs)
+	if err != nil {
+		return fmt.Errorf("failed to get link MTU %v , %v: %v", n, nArgs, err)
+	}
+
 	// Check if the container interface already exists
 	if !checkIfContainerInterfaceExists(args) {
-		if err = setupVeth(netns, br, args.ContainerID, args.IfName, n.MTU, n.HairpinMode); err != nil {
+		if err = setupVeth(netns, br, args.ContainerID, args.IfName, linkMTU, n.HairpinMode); err != nil {
 			return err
 		}
 	} else {
@@ -173,19 +177,10 @@ func cmdAdd(args *skel.CmdArgs) error {
 	}
 
 	if err := netns.Do(func(_ ns.NetNS) error {
-		overHeadToUse := 0
-		if nArgs.LinkMTUOverhead != "" {
-			overHeadToUse, err = strconv.Atoi(string(nArgs.LinkMTUOverhead))
-			if err != nil {
-				logrus.Errorf("rancher-cni-bridge: Error converting LinkMTUOverhead: %v to int", nArgs.LinkMTUOverhead)
-				overHeadToUse = n.LinkMTUOverhead
-			}
-		} else {
-			overHeadToUse = n.LinkMTUOverhead
+		linkMTU, err := getLinkMTU(*n, *nArgs)
+		if err != nil {
+			return fmt.Errorf("failed to get link MTU %v , %v: %v", n, nArgs, err)
 		}
-
-		linkMTU := n.MTU - overHeadToUse
-		logrus.Debugf("rancher-cni-bridge: overHeadToUse: %v, linkMTU: %v", overHeadToUse, linkMTU)
 
 		if linkMTU > 0 {
 			logrus.Debugf("rancher-cni-bridge: setting %v linkMTU: %v", args.IfName, linkMTU)
